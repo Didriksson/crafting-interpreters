@@ -4,16 +4,18 @@ import Data.Char ( isDigit )
 
 data Result = 
     LeftParen Int| RightParen Int| LeftBrace Int| RightBrace Int| Comma Int| Dot Int| Minus Int| Plus Int| Semicolon Int| Slash Int| Star Int| EoF Int|
-    Bang Int|
-    Equal Int|
-    Less Int|
-    Greater Int|
-    Comment String Int|
+    Bang Int |
+    Equal Int |
+    Less Int |
+    Greater Int |
+    Comment String Int |
     STRING String Int |
     NUMBER Float Int |
-    BangEqual Int|
-    EqualEqual Int|
-    LessEqual Int|
+    BangEqual Int |
+    EqualEqual Int |
+    LessEqual Int |
+    Or Int|
+    And Int|
     GreaterEqual Int|
     Newline Int |
     Error String Int 
@@ -72,6 +74,8 @@ scanToken token currentLine =
     '/':'/':xs -> (dropComment xs, Comment (takeComment xs) currentLine)
     '/':xs -> (xs, Slash currentLine)
     ' ':xs -> scanToken xs currentLine
+    'O':'R':xs -> (xs, Or currentLine)
+    'A':'N':'D':xs -> (xs, And currentLine)
     '\n':xs -> (xs, Newline currentLine)
     '\t':xs -> scanToken xs currentLine
     '\r':xs -> scanToken xs currentLine    
