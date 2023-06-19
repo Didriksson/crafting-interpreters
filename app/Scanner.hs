@@ -1,8 +1,7 @@
-module Scanner(scanTokens) where
+module Scanner(scanTokens, Token) where
 import Data.Char ( isDigit, isAlpha, isAlphaNum )
 
-
-data Result = 
+data Token = 
     LeftParen Int| RightParen Int| LeftBrace Int| RightBrace Int| Comma Int| Dot Int| Minus Int| Plus Int| Semicolon Int| Slash Int| Star Int| EoF Int|
     Bang Int |
     Equal Int |
@@ -42,7 +41,7 @@ dropComment = dropWhile (/= '\n')
 takeComment :: String -> String
 takeComment = takeWhile (/= '\n')
     
-parseString :: String -> Int -> (String, Result)
+parseString :: String -> Int -> (String, Token)
 parseString input cline =
     (rest, STRING rSTRING cline)
     where 
@@ -52,7 +51,7 @@ parseString input cline =
 parseFloat :: String -> Float
 parseFloat raw = read raw :: Float
 
-parseNumber :: String -> Int -> (String, Result)
+parseNumber :: String -> Int -> (String, Token)
 parseNumber input cline =
     case rest of
         '.':p:xs -> if isDigit p then
@@ -64,7 +63,7 @@ parseNumber input cline =
         rNumber = takeWhile isDigit input
         rest = drop (length rNumber) input
 
-parseIdentifierOrKeyword :: String -> Int -> (String, Result)
+parseIdentifierOrKeyword :: String -> Int -> (String, Token)
 parseIdentifierOrKeyword input line = 
     case rIdentifier of
         "and" -> (rest, And line)
@@ -88,7 +87,7 @@ parseIdentifierOrKeyword input line =
         rIdentifier = takeWhile isAlphaNum input
         rest = drop (length rIdentifier) input
 
-scanToken :: String -> Int -> (String, Result)
+scanToken :: String -> Int -> (String, Token)
 scanToken token currentLine = 
   case token of
     '(':xs -> (xs, LeftParen currentLine)
@@ -125,7 +124,7 @@ scanToken token currentLine =
                     else (xs, Error ("Unexpected character '" ++ [unknown] ++ "'") currentLine)
     _ -> ("", EoF currentLine)
 
-scan :: String -> [Result] -> Int -> [Result]
+scan :: String -> [Token] -> Int -> [Token]
 scan input tokens currentLine =
     case result of
         ([], EoF line) -> tokens ++ [EoF line]
@@ -134,6 +133,6 @@ scan input tokens currentLine =
         (remaining, token) -> scan remaining (tokens ++ [token]) currentLine
     where result = scanToken input currentLine
 
-scanTokens :: String -> [Result]
+scanTokens :: String -> [Token]
 scanTokens input =
     scan input [] 1
