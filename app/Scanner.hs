@@ -1,5 +1,5 @@
 module Scanner(scanTokens) where
-import Data.Char ( isDigit )
+import Data.Char ( isDigit, isAlpha, isAlphaNum )
 
 
 data Result = 
@@ -14,7 +14,22 @@ data Result =
     BangEqual Int |
     EqualEqual Int |
     LessEqual Int |
-    Or Int|
+    Class Int |
+    Else Int |
+    FALSE Int |
+    TRUE Int |
+    For Int |
+    Fun Int |
+    Or Int |
+    If Int |
+    Nil Int |
+    Print Int |
+    Return Int |
+    Super Int |
+    This Int |
+    Var Int |
+    While Int |
+    Identifier String Int |
     And Int|
     GreaterEqual Int|
     Newline Int |
@@ -49,6 +64,30 @@ parseNumber input cline =
         rNumber = takeWhile isDigit input
         rest = drop (length rNumber) input
 
+parseIdentifierOrKeyword :: String -> Int -> (String, Result)
+parseIdentifierOrKeyword input line = 
+    case rIdentifier of
+        "and" -> (rest, And line)
+        "class" -> (rest, Class line)
+        "else" -> (rest, Else line)
+        "false" -> (rest, FALSE line)
+        "for" -> (rest, For line)
+        "fun" -> (rest, Fun line)
+        "if" -> (rest, If line)
+        "nil" -> (rest, Nil line)
+        "or" -> (rest, Or line)
+        "print" -> (rest, Print line)
+        "return" -> (rest, Return line)
+        "super" -> (rest, Super line)
+        "this" -> (rest, This line)
+        "true" -> (rest, TRUE line)
+        "var" -> (rest, Var line)
+        "while" -> (rest, While line)
+        _ -> (rest, Identifier rIdentifier line)
+    where 
+        rIdentifier = takeWhile isAlphaNum input
+        rest = drop (length rIdentifier) input
+
 scanToken :: String -> Int -> (String, Result)
 scanToken token currentLine = 
   case token of
@@ -80,8 +119,10 @@ scanToken token currentLine =
     '\t':xs -> scanToken xs currentLine
     '\r':xs -> scanToken xs currentLine    
     unknown:xs -> if isDigit unknown 
-                  then parseNumber token currentLine
-                  else (xs, Error ("Unexpected character '" ++ [unknown] ++ "'") currentLine)
+                    then parseNumber token currentLine
+                  else if isAlpha unknown
+                    then parseIdentifierOrKeyword token currentLine
+                    else (xs, Error ("Unexpected character '" ++ [unknown] ++ "'") currentLine)
     _ -> ("", EoF currentLine)
 
 scan :: String -> [Result] -> Int -> [Result]
