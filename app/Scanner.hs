@@ -1,38 +1,38 @@
-module Scanner(scanTokens, Token) where
+module Scanner(scanTokens, Token (..), TokenType(..)) where
 import Data.Char ( isDigit, isAlpha, isAlphaNum )
-
-data Token = 
-    LeftParen Int| RightParen Int| LeftBrace Int| RightBrace Int| Comma Int| Dot Int| Minus Int| Plus Int| Semicolon Int| Slash Int| Star Int| EoF Int|
-    Bang Int |
-    Equal Int |
-    Less Int |
-    Greater Int |
-    Comment String Int |
-    STRING String Int |
-    NUMBER Float Int |
-    BangEqual Int |
-    EqualEqual Int |
-    LessEqual Int |
-    Class Int |
-    Else Int |
-    FALSE Int |
-    TRUE Int |
-    For Int |
-    Fun Int |
-    Or Int |
-    If Int |
-    Nil Int |
-    Print Int |
-    Return Int |
-    Super Int |
-    This Int |
-    Var Int |
-    While Int |
-    Identifier String Int |
-    And Int|
-    GreaterEqual Int|
-    Newline Int |
-    Error String Int 
+data Token = Token TokenType Int deriving (Show)
+data TokenType = 
+    LeftParen | RightParen | LeftBrace | RightBrace | Comma | Dot | Minus | Plus | Semicolon | Slash | Star | EoF |
+    Bang |
+    Equal |
+    Less |
+    Greater |
+    Comment String |
+    STRING String |
+    NUMBER Float |
+    BangEqual |
+    EqualEqual |
+    LessEqual |
+    Class |
+    Else |
+    FALSE |
+    TRUE |
+    For |
+    Fun |
+    Or |
+    If |
+    Nil |
+    Print |
+    Return |
+    Super |
+    This |
+    Var |
+    While |
+    Identifier String |
+    Error String |
+    And |
+    GreaterEqual |
+    Newline
     deriving(Show)
 
 dropComment :: String -> String
@@ -41,9 +41,9 @@ dropComment = dropWhile (/= '\n')
 takeComment :: String -> String
 takeComment = takeWhile (/= '\n')
     
-parseString :: String -> Int -> (String, Token)
-parseString input cline =
-    (rest, STRING rSTRING cline)
+parseString :: String -> (String, TokenType)
+parseString input =
+    (rest, STRING rSTRING)
     where 
         rSTRING = takeWhile (/= '"') input
         rest = drop (length rSTRING + 1) input
@@ -51,87 +51,87 @@ parseString input cline =
 parseFloat :: String -> Float
 parseFloat raw = read raw :: Float
 
-parseNumber :: String -> Int -> (String, Token)
-parseNumber input cline =
+parseNumber :: String -> (String, TokenType)
+parseNumber input =
     case rest of
         '.':p:xs -> if isDigit p then
-                        (dropWhile isDigit xs, NUMBER (parseFloat (rNumber ++ "." ++ [p] ++ takeWhile isDigit xs)) cline)
+                        (dropWhile isDigit xs, NUMBER (parseFloat (rNumber ++ "." ++ [p] ++ takeWhile isDigit xs)))
                     else 
-                        (p : xs, NUMBER (parseFloat (rNumber ++ "." ++ takeWhile isDigit xs)) cline)
-        _ -> (rest, NUMBER (parseFloat rNumber) cline)
+                        (p : xs, NUMBER (parseFloat (rNumber ++ "." ++ takeWhile isDigit xs)))
+        _ -> (rest, NUMBER (parseFloat rNumber))
     where 
         rNumber = takeWhile isDigit input
         rest = drop (length rNumber) input
 
-parseIdentifierOrKeyword :: String -> Int -> (String, Token)
-parseIdentifierOrKeyword input line = 
+parseIdentifierOrKeyword :: String -> (String, TokenType)
+parseIdentifierOrKeyword input = 
     case rIdentifier of
-        "and" -> (rest, And line)
-        "class" -> (rest, Class line)
-        "else" -> (rest, Else line)
-        "false" -> (rest, FALSE line)
-        "for" -> (rest, For line)
-        "fun" -> (rest, Fun line)
-        "if" -> (rest, If line)
-        "nil" -> (rest, Nil line)
-        "or" -> (rest, Or line)
-        "print" -> (rest, Print line)
-        "return" -> (rest, Return line)
-        "super" -> (rest, Super line)
-        "this" -> (rest, This line)
-        "true" -> (rest, TRUE line)
-        "var" -> (rest, Var line)
-        "while" -> (rest, While line)
-        _ -> (rest, Identifier rIdentifier line)
+        "and" -> (rest, And)
+        "class" -> (rest, Class)
+        "else" -> (rest, Else)
+        "false" -> (rest, FALSE)
+        "for" -> (rest, For)
+        "fun" -> (rest, Fun)
+        "if" -> (rest, If)
+        "nil" -> (rest, Nil)
+        "or" -> (rest, Or)
+        "print" -> (rest, Print)
+        "return" -> (rest, Return)
+        "super" -> (rest, Super)
+        "this" -> (rest, This)
+        "true" -> (rest, TRUE)
+        "var" -> (rest, Var)
+        "while" -> (rest, While)
+        _ -> (rest, Identifier rIdentifier)
     where 
         rIdentifier = takeWhile isAlphaNum input
         rest = drop (length rIdentifier) input
 
-scanToken :: String -> Int -> (String, Token)
-scanToken token currentLine = 
+scanToken :: String -> (String, TokenType)
+scanToken token = 
   case token of
-    '(':xs -> (xs, LeftParen currentLine)
-    ')':xs -> (xs, RightParen currentLine)
-    '{':xs -> (xs, LeftBrace currentLine)
-    '}':xs -> (xs, RightBrace currentLine)
-    ',':xs -> (xs, Comma currentLine)
-    '.':xs -> (xs, Dot currentLine)
-    '-':xs -> (xs, Minus currentLine)
-    '+':xs -> (xs, Plus currentLine)
-    ';':xs -> (xs, Semicolon currentLine)
-    '*':xs -> (xs, Star currentLine)
-    '!':'=':xs -> (xs, BangEqual currentLine)
-    '!':xs -> (xs, Bang currentLine)
-    '=':'=':xs -> (xs, EqualEqual currentLine)
-    '=':xs -> (xs, Equal currentLine)
-    '<':'=':xs -> (xs, LessEqual currentLine)
-    '<':xs -> (xs, Less currentLine)
-    '>':'=':xs -> (xs, GreaterEqual currentLine)
-    '>':xs -> (xs, Greater currentLine)
-    '"':xs -> parseString xs currentLine
-    '/':'/':xs -> (dropComment xs, Comment (takeComment xs) currentLine)
-    '/':xs -> (xs, Slash currentLine)
-    ' ':xs -> scanToken xs currentLine
-    'O':'R':xs -> (xs, Or currentLine)
-    'A':'N':'D':xs -> (xs, And currentLine)
-    '\n':xs -> (xs, Newline currentLine)
-    '\t':xs -> scanToken xs currentLine
-    '\r':xs -> scanToken xs currentLine    
+    '(':xs -> (xs, LeftParen)
+    ')':xs -> (xs, RightParen)
+    '{':xs -> (xs, LeftBrace)
+    '}':xs -> (xs, RightBrace)
+    ',':xs -> (xs, Comma)
+    '.':xs -> (xs, Dot)
+    '-':xs -> (xs, Minus)
+    '+':xs -> (xs, Plus)
+    ';':xs -> (xs, Semicolon)
+    '*':xs -> (xs, Star)
+    '!':'=':xs -> (xs, BangEqual)
+    '!':xs -> (xs, Bang)
+    '=':'=':xs -> (xs, EqualEqual)
+    '=':xs -> (xs, Equal)
+    '<':'=':xs -> (xs, LessEqual)
+    '<':xs -> (xs, Less)
+    '>':'=':xs -> (xs, GreaterEqual)
+    '>':xs -> (xs, Greater)
+    '"':xs -> parseString xs
+    '/':'/':xs -> (dropComment xs, Comment (takeComment xs))
+    '/':xs -> (xs, Slash)
+    ' ':xs -> scanToken xs
+    'O':'R':xs -> (xs, Or)
+    'A':'N':'D':xs -> (xs, And)
+    '\n':xs -> (xs, Newline)
+    '\t':xs -> scanToken xs
+    '\r':xs -> scanToken xs    
     unknown:xs -> if isDigit unknown 
-                    then parseNumber token currentLine
+                    then parseNumber token
                   else if isAlpha unknown
-                    then parseIdentifierOrKeyword token currentLine
-                    else (xs, Error ("Unexpected character '" ++ [unknown] ++ "'") currentLine)
-    _ -> ("", EoF currentLine)
+                    then parseIdentifierOrKeyword token
+                    else (xs, Error ("Unexpected character '" ++ [unknown] ++ "'"))
+    _ -> ("", EoF)
 
 scan :: String -> [Token] -> Int -> [Token]
 scan input tokens currentLine =
     case result of
-        ([], EoF line) -> tokens ++ [EoF line]
-        (remaining, Comment _ _) -> scan remaining tokens currentLine
-        (remaining, Newline _) -> scan remaining tokens (currentLine + 1 )
-        (remaining, token) -> scan remaining (tokens ++ [token]) currentLine
-    where result = scanToken input currentLine
+        ([], EoF) -> tokens ++ [Token EoF currentLine]
+        (remaining, Comment _) -> scan remaining tokens currentLine
+        (remaining, Newline) -> scan remaining tokens (currentLine + 1 )
+        (remaining, tokentype) -> scan remaining (tokens ++ [Token tokentype currentLine]) currentLine
+    where result = scanToken input
 
 scanTokens :: String -> [Token]
 scanTokens input =

@@ -2,11 +2,13 @@ module Main where
 import System.Environment (getArgs)
 import System.IO
 import qualified Scanner
+import qualified Parser
 
 run :: String -> IO ()
 run input = do
     let tokens = Scanner.scanTokens input
     mapM_ print tokens
+    print $ Parser.parse tokens
 
 runPrompt :: IO ()
 runPrompt = do
