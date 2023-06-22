@@ -1,4 +1,4 @@
-module Parser(parse) where
+module Parser(parse, Expression(..)) where
 import Scanner(Token(..), TokenType(..))
 
 data Expression = 
@@ -9,20 +9,20 @@ data Expression =
 
 parse :: [Token] -> Expression
 parse tokens =
-    expression $ map tokenType tokens
+    snd $ expression $ map tokenType tokens
 
 tokenType :: Token -> TokenType
 tokenType (Token t _) = t
 
-expression :: [TokenType] -> Expression
+expression :: [TokenType] -> ([TokenType], Expression)
 expression = equality
 
-equality :: [TokenType] -> Expression
+equality :: [TokenType] -> ([TokenType], Expression)
 equality tokens =
     case rtokens of
-        BangEqual:xs -> Binary expre BangEqual $ snd $ comparison xs
-        EqualEqual:xs -> Binary expre EqualEqual $ snd $ comparison xs
-        _ -> expre
+        BangEqual:xs -> mkBinary expre BangEqual xs comparison
+        EqualEqual:xs -> mkBinary expre EqualEqual xs comparison
+        _ -> (rtokens, expre)
     where 
         (rtokens, expre) = comparison tokens
 
@@ -69,17 +69,19 @@ unary tokens = do
     case tokens of
         Bang:xs -> mkUnary Bang xs unary
         Minus:xs -> mkUnary Minus xs unary
-        _ -> ([], primary tokens)
+        _ -> primary tokens
 
-primary :: [TokenType] -> Expression
+primary :: [TokenType] -> ([TokenType], Expression)
 primary tokens = do    
     case tokens of
-        FALSE:_ -> Literal FALSE
-        TRUE:_ -> Literal TRUE
-        Nil:_ -> Literal Nil
-        NUMBER n:_ -> Literal $ NUMBER n
-        STRING n:_ -> Literal $ STRING n
-        RightParen:xs -> do
-            let expr = expression xs
-            Grouping expr
-        a -> Literal $ Error $ "Förväntade mig att hitta en literal. Fick: " <> show a
+        FALSE:xs -> (xs, Literal FALSE)
+        TRUE:xs -> (xs, Literal TRUE)
+        Nil:xs -> (xs, Literal Nil)
+        NUMBER n:xs -> (xs, Literal $ NUMBER n)
+        STRING n:xs -> (xs, Literal $ STRING n)
+        LeftParen:xs -> do
+            let (rtokens, expr) = expression xs
+            case rtokens of
+                RightParen:xss -> (xss, Grouping expr)
+                a -> ([], Literal $ Error $ "Förväntade mig hitta ). Fick: " <> show a)
+        a -> ([], Literal $ Error $ "Förväntade mig att hitta en literal. Fick: " <> show a)

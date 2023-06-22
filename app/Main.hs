@@ -3,12 +3,15 @@ import System.Environment (getArgs)
 import System.IO
 import qualified Scanner
 import qualified Parser
+import qualified Interpreter
 
 run :: String -> IO ()
 run input = do
     let tokens = Scanner.scanTokens input
-    mapM_ print tokens
-    print $ Parser.parse tokens
+    let expressions = Parser.parse tokens
+    print expressions
+    putStrLn $ Interpreter.interpret expressions
+    
 
 runPrompt :: IO ()
 runPrompt = do
