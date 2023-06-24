@@ -1,55 +1,60 @@
 module Interpreter(interpret) where
 import Parser(Expression(..))
 import Scanner(TokenType(..))
+import Text.Read
 
 
 data NilValue = NilValue deriving(Show)
 newtype EvalError = EvalError String deriving(Show)
 
-eval :: Expression -> Either String EvalError
+eval :: Expression -> Either EvalError String
 eval (Literal l) =
     case l of
-        NUMBER n -> Left $ show n
-        STRING s -> Left $ show s
-        TRUE -> Left $ show True
-        FALSE -> Left $ show False
-        Nil -> Left $ show NilValue
-        noLiteral -> Right $ EvalError $ "Not a literal: " <> show noLiteral
+        NUMBER n -> Right $ show n
+        STRING s -> Right s
+        TRUE -> Right $ show True
+        FALSE -> Right $ show False
+        Nil -> Right $ show NilValue
+        noLiteral -> Left $ EvalError $ "Not a literal: " <> show noLiteral
 
 eval (Grouping expression) =
     eval expression
 
-eval (Unary token expression) =
+eval (Unary token expression) = do
+    right <- eval expression
     case token of
-        Minus -> case right of
-                    Left value -> Left $ show $ -1 * (read value :: Float)
-                    Right err -> Right err
-        Bang -> case evalBoolean (show token) of
-            Left True -> Left $ show False
-            Left False -> Left $ show  True
-            Right err -> Right err
+        Minus -> case readMaybeNumber right of
+                    Just n -> Right $ show $ -1 * n
+                    Nothing -> Left $ EvalError $ "Expected number. Found: " <> show right
+        Bang -> Right $ show $ not $ readBoolean right
+        a -> Left $ EvalError $ "Not a unaryoperator: " <> show a
 
-        a -> Right $ EvalError $ "Not a unaryoperator: " <> show a
-    where
-        right = eval expression
+eval (Binary leftExp operator rightExp) = do
+    left <- eval leftExp
+    right <- eval rightExp
+    case (readMaybeNumber left, readMaybeNumber right) of
+        (Just ln,Just rn) -> 
+            case operator of
+                Minus -> Right $ show $ ln - rn
+                Slash -> Right $ show $ ln / rn
+                Star -> Right $ show $ ln * rn
+                Plus -> Right $ show $ ln + rn
+                a -> Left $ EvalError $ "Not a Binary operator: " <> show a
+        (_,_) -> Right $ left <> right
 
-eval expression =
-    Left $ show expression
-    
+readMaybeNumber :: String -> Maybe Float
+readMaybeNumber mn =
+    readMaybe mn :: Maybe Float
 
-evalBoolean :: String -> Either Bool EvalError
-evalBoolean s =
-    case s of
-        "False" ->Left False
-        "True" -> Left True
-        a -> Right $ EvalError $ "Not a boolean: " <> show a
-
+readBoolean :: String -> Bool
+readBoolean s =
+    read s :: Bool
 
 
 
 interpret :: Expression -> String
 interpret expression =
      case eval expression of
-        Left e -> e
-        Right err -> show err
+        Right e -> e
+        Left err -> show err
 

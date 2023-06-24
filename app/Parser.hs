@@ -83,5 +83,7 @@ primary tokens = do
             let (rtokens, expr) = expression xs
             case rtokens of
                 RightParen:xss -> (xss, Grouping expr)
-                a -> ([], Literal $ Error $ "Förväntade mig hitta ). Fick: " <> show a)
-        a -> ([], Literal $ Error $ "Förväntade mig att hitta en literal. Fick: " <> show a)
+                a:_ -> ([], Literal $ Error $ "Exoected to find ). Got: " <> show a)
+                [] -> ([], Literal $ Error $ "Exoected to find ). Got: " <> [])
+        a:_ -> ([], Literal $ Error $ "Expected to find literal. Got: " <> show a)
+        [] -> ([], Literal $ Error $ "Expected to find literal. Got: " <> [])
