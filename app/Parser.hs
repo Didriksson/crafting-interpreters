@@ -1,5 +1,11 @@
-module Parser(parse, Expression(..)) where
+module Parser(parse, Statement(..), Expression(..)) where
 import Scanner(Token(..), TokenType(..))
+
+
+-- data Statement that can either be an Expression or a PrintStmt
+data Statement = 
+    ExpressionStmt Expression |
+    PrintStmt Expression deriving(Show)
 
 data Expression = 
     Binary Expression TokenType Expression |
@@ -7,12 +13,41 @@ data Expression =
     Literal TokenType |
     Unary TokenType Expression deriving(Show)
 
-parse :: [Token] -> Expression
-parse tokens =
-    snd $ expression $ map tokenType tokens
+parse :: [Token] -> [Statement]
+parse tokens = do
+    parseAllStatements $ map tokenType tokens
+    
+parseAllStatements :: [TokenType] -> [Statement]
+parseAllStatements tokens =
+    case tokens of
+        [EoF] -> []
+        [] -> [ExpressionStmt $ Literal $ Error "Unexpected end of file"]
+        _ -> do
+            let (rtokens, stmt) = statement tokens
+            stmt : parseAllStatements rtokens
+
+
 
 tokenType :: Token -> TokenType
 tokenType (Token t _) = t
+
+consumeSemiColon :: ([TokenType], Expression) -> ([TokenType], Expression)
+consumeSemiColon (tokens, expr) = 
+    case tokens of
+        Semicolon:xss -> (xss, expr)
+        a:_ -> ([], Literal $ Error $ "Expected to find ;. Got: " <> show a)
+        [] -> ([], Literal $ Error $ "Expected to find ; Got: " <> [])
+
+statement :: [TokenType] -> ([TokenType], Statement)
+statement tokens =
+    case tokens of
+        Print:xs -> do
+            let (rtokens, expre) = consumeSemiColon $ expression xs
+            (rtokens, PrintStmt expre)
+        _ -> do
+            let (rtokens, expre) = consumeSemiColon $ expression tokens
+            (rtokens, ExpressionStmt expre)
+
 
 expression :: [TokenType] -> ([TokenType], Expression)
 expression = equality
@@ -83,7 +118,7 @@ primary tokens = do
             let (rtokens, expr) = expression xs
             case rtokens of
                 RightParen:xss -> (xss, Grouping expr)
-                a:_ -> ([], Literal $ Error $ "Exoected to find ). Got: " <> show a)
-                [] -> ([], Literal $ Error $ "Exoected to find ). Got: " <> [])
+                a:_ -> ([], Literal $ Error $ "Expected to find ) Got: " <> show a)
+                [] -> ([], Literal $ Error $ "Expected to find ) Got: " <> [])
         a:_ -> ([], Literal $ Error $ "Expected to find literal. Got: " <> show a)
         [] -> ([], Literal $ Error $ "Expected to find literal. Got: " <> [])
