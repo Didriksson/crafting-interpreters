@@ -1,32 +1,31 @@
 module Parser(parse, Statement(..), Expression(..)) where
 import Scanner(Token(..), TokenType(..))
 
-
--- data Statement that can either be an Expression or a PrintStmt
 data Statement = 
     ExpressionStmt Expression |
-    PrintStmt Expression deriving(Show)
+    PrintStmt Expression |
+    VarStmt TokenType Expression deriving (Show)
 
 data Expression = 
     Binary Expression TokenType Expression |
+    Assign TokenType Expression |
     Grouping Expression |
     Literal TokenType |
-    Unary TokenType Expression deriving(Show)
+    Unary TokenType Expression
+     deriving(Show)
 
 parse :: [Token] -> [Statement]
 parse tokens = do
-    parseAllStatements $ map tokenType tokens
+    parseStatements $ map tokenType tokens
     
-parseAllStatements :: [TokenType] -> [Statement]
-parseAllStatements tokens =
+parseStatements :: [TokenType] -> [Statement]
+parseStatements tokens =
     case tokens of
         [EoF] -> []
         [] -> [ExpressionStmt $ Literal $ Error "Unexpected end of file"]
         _ -> do
             let (rtokens, stmt) = statement tokens
-            stmt : parseAllStatements rtokens
-
-
+            stmt : parseStatements rtokens
 
 tokenType :: Token -> TokenType
 tokenType (Token t _) = t
@@ -44,13 +43,30 @@ statement tokens =
         Print:xs -> do
             let (rtokens, expre) = consumeSemiColon $ expression xs
             (rtokens, PrintStmt expre)
+        Var:Identifier identifier:Equal:xs -> do
+            let (rtokens, expre) = consumeSemiColon $ expression xs
+            (rtokens, VarStmt (Identifier identifier) expre)
         _ -> do
             let (rtokens, expre) = consumeSemiColon $ expression tokens
             (rtokens, ExpressionStmt expre)
 
 
 expression :: [TokenType] -> ([TokenType], Expression)
-expression = equality
+expression = assignment
+
+
+mkAssign :: TokenType -> p -> (p -> (a, Expression)) -> (a, Expression)
+mkAssign token tokens next =
+    (rtokens, Assign token right)
+    where 
+        (rtokens, right) = next tokens
+ 
+
+assignment :: [TokenType] -> ([TokenType], Expression)
+assignment tokens =
+    case tokens of
+        Identifier name:Equal:xs -> mkAssign (Identifier name) xs assignment
+        _ -> equality tokens
 
 equality :: [TokenType] -> ([TokenType], Expression)
 equality tokens =
@@ -114,6 +130,7 @@ primary tokens = do
         Nil:xs -> (xs, Literal Nil)
         NUMBER n:xs -> (xs, Literal $ NUMBER n)
         STRING n:xs -> (xs, Literal $ STRING n)
+        Identifier name:xs -> (xs, Literal $ Identifier name)
         LeftParen:xs -> do
             let (rtokens, expr) = expression xs
             case rtokens of
