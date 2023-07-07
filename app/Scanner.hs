@@ -33,7 +33,7 @@ data TokenType =
     And |
     GreaterEqual |
     Newline
-    deriving(Show)
+    deriving(Show, Eq)
 
 dropComment :: String -> String
 dropComment = dropWhile (/= '\n')

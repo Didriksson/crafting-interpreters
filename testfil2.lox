@@ -1,11 +1,4 @@
-var a = 1;
-var b = 2;
-print a + b;
-a = 40;
-print a + b;
-b = 42;
-print a + b;
-print "Should be 84";
-
-x = (a = 3);
-print x;
+var a = "Jag är här";
+if (a == "Jag är här") {
+  print "Fisksoppan lever!";
+}

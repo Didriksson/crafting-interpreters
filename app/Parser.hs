@@ -4,6 +4,8 @@ import Scanner(Token(..), TokenType(..))
 data Statement = 
     ExpressionStmt Expression |
     PrintStmt Expression |
+    Block [Statement] |
+    IfStmt Expression Statement (Maybe Statement) |
     VarStmt TokenType Expression deriving (Show)
 
 data Expression = 
@@ -30,25 +32,63 @@ parseStatements tokens =
 tokenType :: Token -> TokenType
 tokenType (Token t _) = t
 
-consumeSemiColon :: ([TokenType], Expression) -> ([TokenType], Expression)
-consumeSemiColon (tokens, expr) = 
-    case tokens of
-        Semicolon:xss -> (xss, expr)
-        a:_ -> ([], Literal $ Error $ "Expected to find ;. Got: " <> show a)
-        [] -> ([], Literal $ Error $ "Expected to find ; Got: " <> [])
+consumeSemicolon :: ([TokenType], Expression) -> ([TokenType], Expression)
+consumeSemicolon ([], _) = ([], Literal $ Error $ "Expected to find " <> show Semicolon <> ". Got nothing.")
+consumeSemicolon ([EoF], _) = ([], Literal $ Error $ "Expected to find " <> show Semicolon <> ". Got: end of file.")
+consumeSemicolon (tokens, expr) 
+    | x == Semicolon = (xs, expr)
+    | otherwise =  ([], Literal $ Error $ "Expected to find " <> show Semicolon <> ". Got: " <> show x)
+    where (x:xs) = tokens
 
 statement :: [TokenType] -> ([TokenType], Statement)
 statement tokens =
     case tokens of
         Print:xs -> do
-            let (rtokens, expre) = consumeSemiColon $ expression xs
+            let (rtokens, expre) = consumeSemicolon $ expression xs
             (rtokens, PrintStmt expre)
         Var:Identifier identifier:Equal:xs -> do
-            let (rtokens, expre) = consumeSemiColon $ expression xs
+            let (rtokens, expre) = consumeSemicolon $ expression xs
             (rtokens, VarStmt (Identifier identifier) expre)
+        LeftBrace:xs -> block xs
+        If:xs -> ifStatement xs
         _ -> do
-            let (rtokens, expre) = consumeSemiColon $ expression tokens
+            let (rtokens, expre) = consumeSemicolon $ expression tokens
             (rtokens, ExpressionStmt expre)
+
+
+ifStatement :: [TokenType] -> ([TokenType], Statement)
+ifStatement tokens = 
+    case tokens of
+        LeftParen:xs -> do
+            let (rtokens, condition ) = expression xs
+            case rtokens of
+                RightParen:ys -> do
+                    let (rtokens', thenBranch) = statement ys
+                    case rtokens' of
+                        Else:zs -> do
+                            let (rtokens'', elseBranch) = statement zs
+                            (rtokens'', IfStmt condition thenBranch $ Just elseBranch)
+                        _ -> (rtokens', IfStmt condition thenBranch Nothing) 
+                _ -> ([], ExpressionStmt $ Literal $ Error "Expected to find )")
+        _ -> ([], ExpressionStmt $ Literal $ Error "Expected to find (")
+
+
+
+parseUntilClosingBlock :: [TokenType] -> ([TokenType], [Statement])
+parseUntilClosingBlock tokens =
+    case tokens of
+        RightBrace:xs -> (xs, [])
+        _ -> do
+            let (rtokens, stmt) = statement tokens
+            let (rtokens', stmts) = parseUntilClosingBlock rtokens
+            (rtokens', stmt : stmts)
+
+
+block :: [TokenType] -> ([TokenType], Statement)
+block tokens =   
+    (rtokens, Block parsedBlock) 
+    where 
+        (rtokens, parsedBlock) = parseUntilClosingBlock tokens
 
 
 expression :: [TokenType] -> ([TokenType], Expression)

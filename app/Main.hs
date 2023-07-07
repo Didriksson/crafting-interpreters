@@ -9,7 +9,6 @@ run :: String -> IO ()
 run input = do
     let tokens = Scanner.scanTokens input
     let expressions = Parser.parse tokens
-    print expressions
     interpretResult <- Interpreter.interpret expressions
     print interpretResult
     
