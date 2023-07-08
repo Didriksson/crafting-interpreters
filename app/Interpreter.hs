@@ -131,11 +131,39 @@ evalExpression state (Binary leftExp operator rightExp) = do
                                                     Star -> Right (state, Numbertype $ l * r)
                                                     Slash -> Right (state, Numbertype $ l / r)
                                                     _ -> Left $ EvalError $ "Not a binary operator: " <> show operator
-                (Stringtype l, Stringtype r) -> case operator of
-                                                    Plus -> Right (state, Stringtype $ l <> r)
+                (l, r)                      -> case operator of
+                                                    Plus -> Right (state, Stringtype $ show l <> show r)
                                                     _ -> Left $ EvalError $ "Not a binary operator: " <> show operator
 
-                _ -> Left $ EvalError $ "Not a binary operator: " <> show operator
+evalExpression state (Logical leftExp operator rightExp) = do
+    (newstate, left) <- evalExpression state leftExp
+    let leftTruthy = truthiness left
+    case operator of
+        Or -> if leftTruthy
+                then Right (newstate, left)
+                else do    
+                    (newstate', right) <- evalExpression state rightExp
+                    let rightTruthy = truthiness right
+                    if rightTruthy
+                        then Right (newstate', right)
+                        else Right (newstate', left)
+        And -> if leftTruthy 
+                then do                
+                    (newstate', right) <- evalExpression state rightExp
+                    let rightTruthy = truthiness right
+                    if rightTruthy
+                        then Right (newstate', right)
+                        else Right (newstate', left)
+                else Right (newstate, left)
+        _ -> Left $ EvalError $ "Not a logical operator: " <> show operator
+
+truthiness :: Result -> Bool
+truthiness r =
+    case r of 
+        NilValue -> False
+        Booltype b -> b
+        _ -> True
+
 
 eval :: Statement -> State -> IO (Either EvalError State)
 eval (ExpressionStmt expression) state =
@@ -181,6 +209,61 @@ eval (IfStmt conditional thenBranch mElseBranch) state = do
                                     Nothing -> pure $ Right state'
                 _ -> pure $ Left $ EvalError "Expected boolean expression"
 
+
+eval (WhileStmt conditional body) state = do
+    let evalConditional = evalExpression state conditional
+    case evalConditional of
+        Left err -> pure $ Left err
+        Right (state', result) ->
+            case result of
+                Booltype b -> if b
+                                then do
+                                    evalResult <- eval body state'
+                                    case evalResult of
+                                        Right newState -> eval (WhileStmt conditional body) newState
+                                        Left err -> pure $ Left err
+                                else pure $ Right state'
+                _ -> pure $ Left $ EvalError "Expected boolean expression"
+
+eval (ForStmt mInit mCondition mIncrement body) state = do
+    initState <- case mInit of
+                    Just init' -> do eval init' state
+                    Nothing -> pure $ Right state
+    case initState of
+        Right state' -> do
+            case mCondition of
+                Just cond -> do
+                    let condEvalResult = evalExpression state' cond
+                    case condEvalResult of
+                        Right (condState, condResult) -> do
+                            case condResult of
+                                Booltype True -> do
+                                    bodyeval <- eval body condState
+                                    case bodyeval of
+                                        Right newstate -> do
+                                            let incrementEvalResult = case mIncrement of
+                                                                        Just inc -> evalExpression newstate inc
+                                                                        Nothing -> Right (newstate, NilValue)    
+                                            case incrementEvalResult of
+                                                Right (incrementState, _) -> eval (ForStmt Nothing mCondition mIncrement body) incrementState
+                                                Left err -> pure $ Left err
+                                        Left err -> pure $ Left err
+                                Booltype False -> pure $ Right condState
+                                _ -> pure $ Left $ EvalError "Expected boolean expression"
+                        Left err -> pure $ Left err
+                Nothing -> do
+                    bodyeval <- eval body state'
+                    case bodyeval of
+                        Right newstate -> do
+                            let incrementEvalResult = case mIncrement of
+                                                        Just inc -> evalExpression newstate inc
+                                                        Nothing -> Right (newstate, NilValue)    
+                            case incrementEvalResult of
+                                Right (incrementState, _) -> eval (ForStmt Nothing mCondition mIncrement body) incrementState
+                                Left err -> pure $ Left err
+                        Left err -> pure $ Left err
+        Left err -> pure $ Left err
+    
 
 
 evalAll :: [Statement] -> State -> IO (Either EvalError State)

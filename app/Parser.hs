@@ -6,6 +6,8 @@ data Statement =
     PrintStmt Expression |
     Block [Statement] |
     IfStmt Expression Statement (Maybe Statement) |
+    WhileStmt Expression Statement |
+    ForStmt (Maybe Statement) (Maybe Expression) (Maybe Expression) Statement |
     VarStmt TokenType Expression deriving (Show)
 
 data Expression = 
@@ -13,6 +15,7 @@ data Expression =
     Assign TokenType Expression |
     Grouping Expression |
     Literal TokenType |
+    Logical Expression TokenType Expression |
     Unary TokenType Expression
      deriving(Show)
 
@@ -51,10 +54,65 @@ statement tokens =
             (rtokens, VarStmt (Identifier identifier) expre)
         LeftBrace:xs -> block xs
         If:xs -> ifStatement xs
+        For:xs -> forStatement xs
+        While:xs -> whileStatement xs
         _ -> do
             let (rtokens, expre) = consumeSemicolon $ expression tokens
             (rtokens, ExpressionStmt expre)
 
+
+parseInitialiser :: [TokenType] -> ([TokenType], Maybe Statement)
+parseInitialiser tokens =
+    case tokens of
+        LeftParen:Var:Identifier identifier:Equal:xs -> do
+                        let (rtokens, expre) = consumeSemicolon $ expression xs
+                        (rtokens, Just $ VarStmt (Identifier identifier) expre)
+        LeftParen:Semicolon:xs -> (xs, Nothing)
+        LeftParen:xs -> do
+                        let (rtokens, expre) = expression xs
+                        (rtokens, Just $ ExpressionStmt expre)
+
+        _ -> ([], Just $ ExpressionStmt $ Literal $ Error "Expected to find (")
+
+parseCondition :: [TokenType] -> ([TokenType], Maybe Expression)
+parseCondition tokens =
+    case tokens of
+        Semicolon:xs -> (xs, Nothing)
+        _ -> do
+            let (rtokens, expre) = consumeSemicolon $ expression tokens
+            (rtokens, Just expre)
+
+parseIncrement :: [TokenType] -> ([TokenType], Maybe Expression)
+parseIncrement tokens =
+    case tokens of
+        RightParen:xs -> (xs, Nothing)
+        _ -> do
+            let (rtokens, expre) = expression tokens
+            case rtokens of
+                RightParen:ys -> (ys, Just expre)
+                _ -> ([], Just $ Literal $ Error "Expected to find )")
+
+forStatement :: [TokenType] -> ([TokenType], Statement)
+forStatement tokens = do
+    (rtokens''', ForStmt initialiser condition increment body)
+    where         
+        (rtokens, initialiser) = parseInitialiser tokens
+        (rtokens', condition) = parseCondition rtokens
+        (rtokens'', increment) = parseIncrement rtokens'
+        (rtokens''', body) =  statement rtokens''
+   
+
+whileStatement :: [TokenType] -> ([TokenType], Statement)
+whileStatement tokens = 
+    case tokens of
+        LeftParen:xs -> do
+            let (rtokens, condition ) = expression xs
+            case rtokens of
+                RightParen:ys -> do
+                    let (rtokens', body) = statement ys
+                    (rtokens', WhileStmt condition body)
+                _ -> ([], ExpressionStmt $ Literal $ Error "Expected to find )")
+        _ -> ([], ExpressionStmt $ Literal $ Error "Expected to find (")
 
 ifStatement :: [TokenType] -> ([TokenType], Statement)
 ifStatement tokens = 
@@ -100,13 +158,36 @@ mkAssign token tokens next =
     (rtokens, Assign token right)
     where 
         (rtokens, right) = next tokens
+
+
+mkLogical :: Expression -> TokenType -> p -> (p -> (a, Expression)) -> (a, Expression)
+mkLogical expr operator tokens next =
+    (rtokens, Logical expr operator right)
+    where 
+        (rtokens, right) = next tokens
  
 
 assignment :: [TokenType] -> ([TokenType], Expression)
 assignment tokens =
     case tokens of
         Identifier name:Equal:xs -> mkAssign (Identifier name) xs assignment
-        _ -> equality tokens
+        _ -> logicOr tokens
+
+logicOr :: [TokenType] -> ([TokenType], Expression)
+logicOr tokens = 
+    case rtokens of
+        Or:xs -> mkLogical left Or xs logicAnd
+        _ -> (rtokens, left)
+    where (rtokens, left) = logicAnd tokens
+
+
+logicAnd :: [TokenType] -> ([TokenType], Expression)
+logicAnd tokens = 
+    case rtokens of
+        And:xs -> mkLogical left And xs equality
+        _ -> (rtokens, left)
+    where (rtokens, left) = equality tokens
+
 
 equality :: [TokenType] -> ([TokenType], Expression)
 equality tokens =

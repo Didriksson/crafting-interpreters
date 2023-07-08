@@ -1,4 +1,0 @@
-var a = "Jag är här";
-if (a == "Jag är här") {
-  print "Fisksoppan lever!";
-}

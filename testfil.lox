@@ -1,12 +1,16 @@
-3.1415
-42
-42.42.42.4
-// this is a comment
-(( )){} // grouping stuff
-!*+-/=<> <= == // operators
-,.;
-"Hello Lox!!!!!!!!";
-1 or 2
-3 and 4
-orchid = 2
-variable = 5
+var a = "Jag är här";
+if (a == "Jag är här") {
+  print "Fisksoppan lever!";
+}
+
+print "hi" or 2; // "hi".
+print nil or "yes"; // "yes".
+
+var c = 1;
+
+while(c < 5){
+    print ("Varv: " + c);
+    c = c + 1;
+}
+
+for (var i = 0; i < 10; i = i + 1) print i;
